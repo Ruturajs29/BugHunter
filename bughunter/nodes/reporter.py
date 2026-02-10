@@ -22,8 +22,12 @@ def _clean_line_numbers(raw: str) -> str:
 
 
 def _clean_explanation(text: str) -> str:
-    """Remove hedging phrases and keep explanation concise."""
-    hedges = [
+    """Clean explanation to be concise and human-readable."""
+    # Remove common verbose patterns
+    patterns_to_remove = [
+        r"Evidence:.*?(?=Line \d|$)",
+        r"CONTEXT (?:says|states|mentions|quote).*?(?=Line \d|\.|$)",
+        r"DOCS (?:state|mention|show).*?(?=Line \d|\.|$)",
         r"Note:.*$",
         r"However,? without.*$",
         r"Further verification.*$",
@@ -31,19 +35,46 @@ def _clean_explanation(text: str) -> str:
         r"It is essential to verify.*$",
         r"The exact allowed ranges.*$",
         r"This would need to be verified.*$",
+        r"Additionally,?.*?(?=Line \d|\.|$)",
+        r"This implies that.*?(?=\.|$)",
+        r"which implies.*?(?=\.|$)",
+        r"The correct (?:code|answer|order).*?(?=\.|$)",
+        r"Therefore,?.*?(?=\.|$)",
     ]
-    lines = text.strip().splitlines()
-    cleaned = []
-    for line in lines:
-        skip = False
-        for hedge in hedges:
-            if re.search(hedge, line.strip(), re.IGNORECASE):
-                skip = True
-                break
-        if not skip and line.strip():
-            cleaned.append(line.strip())
-    result = " ".join(cleaned)
+    
+    result = text.strip()
+    for pattern in patterns_to_remove:
+        result = re.sub(pattern, "", result, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Clean up multiple spaces and normalize
     result = re.sub(r'\s+', ' ', result).strip()
+    result = re.sub(r'\s*\.\s*\.', '.', result)  # Remove double periods
+    result = re.sub(r'\s+\.', '.', result)  # Fix spacing before periods
+    result = re.sub(r',\s*,', ',', result)  # Remove double commas
+    
+    # Split long explanations by "Line X:" and format nicely
+    if len(result) > 200:
+        parts = re.split(r'(Line \d+:)', result)
+        if len(parts) > 2:
+            formatted = []
+            i = 1
+            while i < len(parts):
+                if i + 1 < len(parts):
+                    line_part = parts[i].strip() + " " + parts[i+1].strip()
+                    # Take only first sentence of each line explanation
+                    first_sentence = re.match(r'^(.*?[.!?])\s', line_part + " ")
+                    if first_sentence:
+                        formatted.append(first_sentence.group(1))
+                    else:
+                        formatted.append(line_part[:100])
+                i += 2
+            result = " | ".join(formatted)
+    
+    # Final cleanup
+    result = result.strip()
+    if not result:
+        result = "Bug detected in code."
+    
     return result
 
 

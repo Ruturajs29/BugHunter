@@ -16,34 +16,47 @@ You receive BUGGY CODE (numbered), CONTEXT, CANDIDATE LINES, DOCS, and STATIC hi
 VERIFICATION PROCESS:
 1. Read the CONTEXT carefully - it often explicitly describes what bug exists.
 2. Only flag a line if you have DEFINITIVE proof it is wrong.
-3. For each bug, cite evidence from CONTEXT or DOCS.
+3. Focus on the specific bug mentioned in CONTEXT.
 
 BUG TYPES (only flag if you have proof):
-- Wrong mode/constant (e.g. TA::VECD should be TA::VTT per CONTEXT)
+- Wrong mode/constant (e.g. TA::VECD should be TA::VTT)
 - Misspelled function names (e.g. iMeans should be iMeas)
 - Wrong argument order (e.g. iClamp(high,low) should be iClamp(low,high))
 - Wrong lifecycle order (RDI_END before RDI_BEGIN)
 - Pin name mismatches between capture and read operations
 - Wrong terminal method (e.g. .burst() instead of .execute())
-- Values explicitly out of range per DOCS
+- Values out of range per DOCS
 
 CRITICAL RULES:
 - BE CONSERVATIVE. When in doubt, do NOT flag the line.
 - Do NOT flag lines just because they "might" have issues.
-- Do NOT flag RDI_BEGIN/RDI_END unless they are in the WRONG ORDER.
-- Do NOT flag method chaining that is syntactically valid.
-- Only flag lines where you can state: "Line X uses Y but CONTEXT/DOCS says it must be Z."
 - If the CONTEXT mentions a specific bug, focus on finding THAT bug only.
 
 CONFIDENCE RULES:
-- high: The CONTEXT explicitly describes the bug, or DOCS definitively contradict the code.
+- high: CONTEXT explicitly describes the bug, or DOCS definitively contradict the code.
 - low: You suspect a bug but lack definitive proof.
+
+EXPLANATION FORMAT:
+Write a SHORT, HUMAN-READABLE explanation. Use this format:
+"[Wrong thing] should be [correct thing]"
+
+Examples of GOOD explanations:
+- "vecEditMode(TA::VECD) should be vecEditMode(TA::VTT) for runtime vector editing"
+- "iClamp(50mA, -50mA) has reversed arguments, should be iClamp(-50mA, 50mA)"
+- "getFFC() should be getFFV() to get first fail vector"
+- "RDI_END on line 5 appears before RDI_BEGIN on line 7"
+
+Do NOT include:
+- Long evidence citations
+- Phrases like "Evidence:", "CONTEXT says", "DOCS state"
+- Repetitive explanations
+- Hedging words
 
 Output format (no markdown, no fences):
 
 CONFIDENCE: high|low
 BUG_LINES: <comma-separated line numbers>
-EXPLANATION: <"Line X: [what's wrong] should be [correct]. Evidence: [CONTEXT/DOCS quote]">
+EXPLANATION: <short human-readable explanation>
 """
 
 MAX_DOC_CHARS = 6000
