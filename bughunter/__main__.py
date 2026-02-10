@@ -73,7 +73,7 @@ def main() -> None:
         print(f"  Done in {elapsed:.1f}s")
 
         if idx < total:
-            wait_s = 15
+            wait_s = 5
             print(f"  Waiting {wait_s}s for rate limit cooldown ...")
             time.sleep(wait_s)
 

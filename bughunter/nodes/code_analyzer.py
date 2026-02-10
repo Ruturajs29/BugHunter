@@ -15,22 +15,31 @@ from bughunter.state import BugHunterState
 
 SYSTEM_PROMPT = """\
 You are a senior C++ / RDI semiconductor test-code analyst.
-You will receive a snippet of C++ code and optional context.
+You will receive a snippet of C++ code, context describing the expected behavior, and static analysis hints.
 
 Your job:
 1. Number every line of the code starting from 1.
 2. List every RDI API / function call (e.g. rdi.dc().vForce(), rdi.smartVec().vecEditMode()).
-3. For each line containing a CLEAR defect, note the line NUMBER and the specific error.
+3. Carefully compare the CODE against the CONTEXT description to find mismatches.
+4. For each line containing a CLEAR defect, note the line NUMBER and the specific error.
 
-Only flag lines with concrete defects such as:
-- A function name that does not exist or is misspelled
-- Incorrect argument values or swapped argument order
-- Wrong lifecycle ordering (e.g. RDI_END before RDI_BEGIN)
-- Pin name mismatch between related operations
-- Using an incorrect API method (e.g. .burst() instead of .execute())
-- Values outside documented allowed ranges
+BUG DETECTION RULES (be thorough):
+- Function names that do not exist, are misspelled, or have wrong casing (e.g. iMeans vs iMeas, imeasRange vs iMeasRange)
+- Incorrect argument values or swapped argument order (e.g. iClamp(high, low) instead of iClamp(low, high))
+- Wrong lifecycle ordering (RDI_END before RDI_BEGIN, or misplaced RDI_BEGIN/RDI_END)
+- Pin name mismatch between related operations (e.g. capture on "D0" but read from "DO")
+- Using incorrect API method (e.g. .burst() instead of .execute(), .read() instead of .execute())
+- Values outside allowed ranges (e.g. vForceRange(35V) when max is 30V, samples > 8192)
+- Wrong method chaining order (e.g. iMeas() before addWaveform() when it should be after)
+- Incorrect object/method references (e.g. rdi.burstUpload.smartVec() vs rdi.smartVec().burstUpload())
+- Non-existent methods (e.g. push_forward instead of push_back)
+- Missing required parameters or extra unwanted parameters
+- Wrong variable names in related operations (e.g. vec_port1 vs vec_port2 mismatch)
 
-Do NOT flag lines that merely "look suspicious" without a concrete error.
+CRITICAL: Cross-reference the CONTEXT description with the code. The context often describes
+what the code SHOULD do - if the code does something different, that's a bug.
+
+Do NOT flag lines that are syntactically and semantically correct.
 
 Output EXACTLY (no markdown fences):
 
@@ -40,7 +49,7 @@ APIS:
 ...
 
 CANDIDATES:
-<line_number>|<line_content>|<concrete reason>
+<line_number>|<line_content>|<concrete reason citing what is wrong and what it should be>
 """
 
 
@@ -127,7 +136,18 @@ def code_analyzer_node(state: BugHunterState) -> dict:
                     }
                 )
 
-    search_queries = [api + " correct usage" for api in apis[:10]]
+    # Generate search queries from APIs and candidate bug reasons
+    search_queries = [api + " correct usage" for api in apis[:8]]
+    
+    # Add queries based on candidate bug content for better doc retrieval
+    for cand in candidates[:5]:
+        content = cand.get("content", "")
+        # Extract function names from the candidate line
+        funcs = re.findall(r'\.(\w+)\s*\(', content)
+        for func in funcs[:2]:
+            query = f"rdi {func} syntax parameters"
+            if query not in search_queries:
+                search_queries.append(query)
 
     print(f"  Extracted {len(apis)} APIs, {len(candidates)} candidate lines")
 

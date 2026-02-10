@@ -1,0 +1,13 @@
+# BugHunter - Agentic C++ Bug Finder
+# Core LangChain/LangGraph dependencies
+langgraph>=0.2.0
+langchain-groq>=0.2.0
+langchain-mcp-adapters>=0.1.0
+langchain-core>=0.3.0
+
+# Environment and data handling
+python-dotenv>=1.0.0
+pandas>=2.0.0
+
+# Async handling (optional, for nested event loops)
+nest-asyncio>=1.5.0
